@@ -4,10 +4,6 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
 
-SUBSAMPLE, SHAPE = False, (46, 121, 240)
-SUBSAMPLE, SHAPE = 20, (46, 121 // 20 + 1, 240 // 20)
-
-
 # ds = cml.load_dataset(
 #     "s2s-ai-challenge-training-input",
 #     date="20200102",
@@ -27,7 +23,7 @@ It should also contain any processing which has been applied (if any),
 _CITATION = """cite"""
 
 
-class Mydataset(tfds.core.GeneratorBasedBuilder):
+class MydatasetGeneric(tfds.core.GeneratorBasedBuilder):
     """DatasetBuilder for mydataset dataset."""
 
     VERSION = tfds.core.Version("1.0.0")
@@ -42,8 +38,12 @@ class Mydataset(tfds.core.GeneratorBasedBuilder):
             description=_DESCRIPTION,
             features=tfds.features.FeaturesDict(
                 {
-                    "t2m": tfds.features.Tensor(shape=SHAPE, dtype=tf.dtypes.float32),
-                    "obs": tfds.features.Tensor(shape=SHAPE, dtype=tf.dtypes.float32),
+                    "t2m": tfds.features.Tensor(
+                        shape=self.SHAPE, dtype=tf.dtypes.float32
+                    ),
+                    "obs": tfds.features.Tensor(
+                        shape=self.SHAPE, dtype=tf.dtypes.float32
+                    ),
                 }
             ),
             # If there's a common (input, target) tuple from the
@@ -70,41 +70,79 @@ class Mydataset(tfds.core.GeneratorBasedBuilder):
             train="s2s-ai-challenge-training-input",
             test="s2s-ai-challenge-test-input",
         )[name]
+        outputname = dict(
+            train="s2s-ai-challenge-training-output-reference",
+            test="s2s-ai-challenge-test-output-reference",
+        )[name]
 
-        dates = ["20200102", "20200109"]
-        for date in dates:
+        fctime_len = dict(train=20, test=1)[name]
+        realization_len = dict(train=11, test=51)[name]
+        if self.dev:
+            fctime_len = dict(train=2, test=1)[name]
+            realization_len = dict(train=4, test=3)[name]
+
+        DATES = ["20200102", "20200109"]
+
+        zipped = [
+            (d, time, r)
+            for d in DATES
+            for time in range(fctime_len)
+            for r in range(realization_len)
+        ]
+
+        def _process_example(args):
+            date, time, realization = args
+
             xds = cml.load_dataset(inputname, date=date, parameter="t2m")
             xds = xds.to_xarray()
 
-            outputname = dict(
-                train="s2s-ai-challenge-training-output-reference",
-                test="s2s-ai-challenge-test-output-reference",
-            )[name]
             yds = cml.load_dataset(outputname, date=date, parameter="t2m")
             yds = yds.to_xarray()
+
             if float(yds.lead_time[0]) == 0:
                 # remote first lead_time if it is zero (t2m for ecmwf)
                 yds = yds.sel(lead_time=yds.lead_time[1:])
-            if SUBSAMPLE:
+
+            if self.dev:
                 xds = xds.sel(
-                    latitude=slice(None, None, SUBSAMPLE),
-                    longitude=slice(None, None, SUBSAMPLE),
+                    latitude=slice(None, None, self.SUBSAMPLE),
+                    longitude=slice(None, None, self.SUBSAMPLE),
                 )
                 yds = yds.sel(
-                    latitude=slice(None, None, SUBSAMPLE),
-                    longitude=slice(None, None, SUBSAMPLE),
+                    latitude=slice(None, None, self.SUBSAMPLE),
+                    longitude=slice(None, None, self.SUBSAMPLE),
                 )
 
-            assert np.all(yds.forecast_time.to_numpy() == xds.forecast_time.to_numpy())
-            for time in xds.forecast_time:
-                yda = yds["t2m"]
-                yda = yda.sel(forecast_time=time)
-                for i in xds.realization:
-                    xda = xds["t2m"]
-                    xda = xda.sel(forecast_time=time)
-                    xda = xda.sel(realization=i)
+            if not self.dev:
+                assert len(xds.forecast_time) == fctime_len, xds.forecast_time
+                assert len(xds.realization) == realization_len, xds.realization
+                assert len(yds.forecast_time) == fctime_len, yds.forecast_time
 
-                    yield f"key-{name}-{date}-{i}-{time}", {
-                        "t2m": xda.to_numpy(),
-                        "obs": yda.to_numpy(),
-                    }
+            assert np.all(yds.forecast_time.to_numpy() == xds.forecast_time.to_numpy())
+
+            yda = yds["t2m"]
+            yda = yda.isel(forecast_time=time)
+
+            xda = xds["t2m"]
+            xda = xda.isel(forecast_time=time)
+            xda = xda.isel(realization=realization)
+
+            return f"key-{name}-{date}-{realization}-{time}", {
+                "t2m": xda.to_numpy(),
+                "obs": yda.to_numpy(),
+            }
+
+        beam = tfds.core.lazy_imports.apache_beam
+        return beam.Create(zipped) | beam.Map(_process_example)
+
+
+class Mydataset(MydatasetGeneric):
+    SHAPE = (46, 121, 240)
+    SUBSAMPLE = False
+    dev = False
+
+
+class Mydataset2(MydatasetGeneric):
+    SHAPE = (46, 121 // 20 + 1, 240 // 20)
+    SUBSAMPLE = 20
+    dev = True

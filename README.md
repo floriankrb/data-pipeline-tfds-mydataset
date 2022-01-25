@@ -1,11 +1,24 @@
 # tfds experiments
 
 Assuming all packages are installed.
+including
+```
+pip install apache-beam
+pip install tensorflow_datasets
+pip install climetlab climetlab-s2s-ai-challenge
+```
+
 
 Run this with:
 ```
-tfds build dataset2.py  # small test dataset
-tfds build dataset2.py  # larger dataset, need apache beam and crash with bad_aloc
+tfds build dataset2.py  # small test dataset: works
+tfds build dataset.py  # larger dataset, need apache beam and crash with bad_aloc or out of memory
+
+
+python ./mydataset2_test.py # test pass
+python ./mydataset_test.py  # 
+
+tfds build --max_examples_per_split 2 mydataset.py  # does not help
 ```
 
 ### License

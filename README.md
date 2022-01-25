@@ -16,7 +16,7 @@ tfds build dataset.py  # larger dataset, need apache beam and crash with bad_alo
 
 
 python ./mydataset2_test.py # test pass
-python ./mydataset_test.py  # 
+python ./mydataset_test.py  #   std::bad_alloc  out of memory
 
 tfds build --max_examples_per_split 2 mydataset.py  # does not help
 ```

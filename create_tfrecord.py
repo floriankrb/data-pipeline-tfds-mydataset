@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 import sys
+from datetime import datetime
 
 import apache_beam as beam
 import climetlab as cml
@@ -54,12 +55,30 @@ def generate_zipped(name):
 
     DATES = ["20200102", "20200109"]
 
+    # one worker loops on all realizations
+    # realization_lists = [range(realization_len)]
+
+    # one worker per realization
+    realization_lists = [[r] for r in range(realization_len)]
+
+    # the actual use case is where we want all realizations in a single example
+    # realization_lists = [[None]]
+
     zipped = [
-        (inputname, outputname, d, time, r, fctime_len, realization_len)
+        (
+            inputname,
+            outputname,
+            d,
+            time,
+            fctime_len,
+            realizations,
+            realization_len,
+        )
         for d in DATES
         for time in range(fctime_len)
-        for r in range(realization_len)
+        for realizations in realization_lists
     ]
+    zipped = [(i, len(zipped), *args) for i, args in enumerate(zipped)]
     # np.random.shuffle(zipped)
     return zipped
 
@@ -67,12 +86,14 @@ def generate_zipped(name):
 def process_example(args):
     try:
         (
+            i,
+            i_total,
             inputname,
             outputname,
             date,
             time,
-            realization,
             fctime_len,
+            realizations,
             realization_len,
         ) = args
 
@@ -104,35 +125,42 @@ def process_example(args):
             assert len(yds.forecast_time) == fctime_len, yds.forecast_time
 
         assert np.all(yds.forecast_time.values == xds.forecast_time.values)
-        print("assertions ok")
+        print(f"assertions ok")
 
         yda = yds["t2m"]
         yda = yda.isel(forecast_time=time)
 
         xda = xds["t2m"]
         xda = xda.isel(forecast_time=time)
-        xda = xda.isel(realization=realization)
 
-        def to_feat(arr):
-            value = arr
-            value = value.astype("float")
-            value = np.nan_to_num(value.flatten())  # nan, -inf, +inf to numbers
-            feat = tf.train.Feature(float_list=tf.train.FloatList(value=value))
-            return feat
+        for j, realization in enumerate(realizations):
+            if realization is not None:
+                xda_ = xda.isel(realization=realization)
+            else:
+                xda_ = xda
 
-        tfexample = tf.train.Example(
-            features=tf.train.Features(
-                feature={
-                    "t2m": to_feat(xda.values),
-                    "obs": to_feat(yda.values),
-                }
+            def to_feat(arr):
+                value = arr
+                value = value.astype("float")
+                value = np.nan_to_num(value.flatten())  # nan, -inf, +inf to numbers
+                feat = tf.train.Feature(float_list=tf.train.FloatList(value=value))
+                return feat
+
+            tfexample = tf.train.Example(
+                features=tf.train.Features(
+                    feature={
+                        "t2m": to_feat(xda_.values),
+                        "obs": to_feat(yda.values),
+                    }
+                )
             )
-        )
-        to_yield = tfexample.SerializeToString()
-        print("process example OK")
-        yield to_yield
+            to_yield = tfexample.SerializeToString()
+            print(f"Writing example {i+1}/{i_total}:{j} OK. {datetime.now()}")
+            yield to_yield
     except:
         e = sys.exc_info()[0]
+        raise (e)
+        print(e)
         logging.error(e)
 
 

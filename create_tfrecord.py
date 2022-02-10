@@ -12,7 +12,7 @@ import xarray as xr
 
 tf.autograph.set_verbosity(0)
 
-logging.basicConfig(level="DEBUG")
+logging.basicConfig(level="WARN")
 
 # SHAPE = (46, 121, 240)
 SUBSAMPLE, IS_DEV = False, False
@@ -185,6 +185,7 @@ def run_job(options, name, outdir):
 def main(name):
     outdir = f"outdir/{name}"
     options = dict()
+    # options['direct_num_workers']=0
     print("Launching local job ... hang on")
     shutil.rmtree(outdir, ignore_errors=True)
     os.makedirs(outdir)

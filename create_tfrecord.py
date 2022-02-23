@@ -164,10 +164,10 @@ def process_example(args):
         logging.error(e)
 
 
-def run_job(options, name, outdir):
+def run_job(flags, options, name, outdir):
 
     # start the pipeline
-    opts = beam.pipeline.PipelineOptions(flags=[], **options)
+    opts = beam.pipeline.PipelineOptions(flags=flags, **options)
     with beam.Pipeline(options["runner"], options=opts) as p:
         # create examples
         examples = (
@@ -184,14 +184,27 @@ def run_job(options, name, outdir):
 
 def main(name):
     outdir = f"outdir/{name}"
-    options = dict()
-    # options['direct_num_workers']=0
     print("Launching local job ... hang on")
     shutil.rmtree(outdir, ignore_errors=True)
     os.makedirs(outdir)
-    options["runner"] = "DirectRunner"
+
+    options = dict()
+    flags = []
+    # ----- Direct runner
+    # options["runner"] = "DirectRunner"
+    # options['direct_num_workers']=0
+
+    # ----- Dataflow
     # options['runner'] = 'DataflowRunner'
-    run_job(options, name, outdir)
+
+    # ----- Spark
+    options["runner"] = "PortableRunner"
+    flags = [
+        "--job_endpoint=192.168.1.57:7077", # sparkmaster
+         "--environment_type=LOOPBACK",
+        ]
+
+    run_job(flags, options, name, outdir)
 
 
 if __name__ == "__main__":

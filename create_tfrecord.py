@@ -200,7 +200,7 @@ def main(name):
     # ----- Spark
     options["runner"] = "PortableRunner"
     flags = [
-        "--job_endpoint=192.168.1.57:7077", # sparkmaster
+        "--job_endpoint=192.168.1.250:7077", # sparkmaster
         #"--environment_type=LOOPBACK",
         ]
 

@@ -201,7 +201,7 @@ def main(name):
     options["runner"] = "PortableRunner"
     flags = [
         "--job_endpoint=192.168.1.57:7077", # sparkmaster
-         "--environment_type=LOOPBACK",
+        #"--environment_type=LOOPBACK",
         ]
 
     run_job(flags, options, name, outdir)

@@ -19,7 +19,8 @@ def run():
     options = PipelineOptions([
   
         "--runner=PortableRunner",
-        "--job_endpoint=192.168.1.250:7077", # sparkmaster
+#        "--job_endpoint=192.168.1.250:7077", # sparkmaster
+        "--job_endpoint=192.168.1.176:7077", #
         #"--artifact_endpoint=10.0.2.15:30091",
         "--save_main_session",
         "--environment_type=DOCKER",

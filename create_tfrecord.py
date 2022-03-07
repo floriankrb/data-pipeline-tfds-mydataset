@@ -202,6 +202,15 @@ def main(name):
     flags = [
         "--job_endpoint=192.168.1.250:7077", # sparkmaster
         #"--environment_type=LOOPBACK",
+
+        "--runner=PortableRunner",
+        #"--job_endpoint=10.0.2.15:30090",
+        #"--artifact_endpoint=10.0.2.15:30091",
+        #"--artifact_endpoint=192.168.1.250:7078",
+        "--save_main_session",
+        "--environment_type=DOCKER",
+        "--environment_config=docker.io/apache/beam_python3.7_sdk:2.33.0"
+
         ]
 
     run_job(flags, options, name, outdir)

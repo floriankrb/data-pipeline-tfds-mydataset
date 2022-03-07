@@ -20,11 +20,11 @@ def run():
   
         "--runner=PortableRunner",
 #        "--job_endpoint=192.168.1.250:7077", # sparkmaster
-        "--job_endpoint=192.168.1.176:7077", #
+        "--job_endpoint=136.156.88.48:7077", #
         #"--artifact_endpoint=10.0.2.15:30091",
-        "--save_main_session",
-        "--environment_type=DOCKER",
-        "--environment_config=docker.io/apache/beam_python3.7_sdk:2.33.0"
+        #"--save_main_session",
+        #"--environment_type=DOCKER",
+        #"--environment_config=docker.io/apache/beam_python3.7_sdk:2.33.0"
 
     ])
 
